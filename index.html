@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>南興國小 115學年度 學校行事曆</title>
+    <!-- React, Babel, Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
+        .whitespace-pre-wrap { white-space: pre-wrap; }
+        
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+
+        table { border-spacing: 0; border-collapse: collapse; width: 100%; min-width: 1300px; }
+
+        .th-custom { padding: 12px 8px; text-align: center; white-space: nowrap; font-size: 0.95em; font-weight: bold; border-right: 1px solid rgba(255,255,255,0.2); }
+        .cell-base { border-right: 1px solid #e2e8f0; vertical-align: top; padding: 4px; transition: background-color 0.2s; }
+        .cell-content { min-height: 44px; padding: 6px; border-radius: 4px; font-size: 0.95em; line-height: 1.4; }
+        .cell-content:hover { background-color: rgba(0,0,0,0.03); }
+        
+        /* 處室專屬色彩規劃 */
+        .header-common { background-color: #ef4444; color: white; }
+        .header-jiaodao { background-color: #3b82f6; color: white; }
+        .header-general { background-color: #f59e0b; color: white; }
+        .header-kinder { background-color: #ec4899; color: white; }
+        .header-health { background-color: #14b8a6; color: white; }
+        .header-workshop { background-color: #8b5cf6; color: white; }
+
+        /* 卷軸美化 */
+        ::-webkit-scrollbar { height: 10px; width: 10px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // ★★★ 請替換為 115學年度專案 發布的 Web App 網址 ★★★
+        const FIXED_API_URL = "https://script.google.com/macros/s/AKfycbylgF2BvcH9zQwkO9DvzG8gKQqSDCkjBt0VqpYObSG6hjfNk3PbHTCG5cUjuUSoGKGWpA/exec"; 
+
+        function App() {
+            const apiUrl = FIXED_API_URL;
+            const [data, setData] = useState([]);
+            const [systemPwd, setSystemPwd] = useState(null); 
+            const [isAdmin, setIsAdmin] = useState(false); 
+            const [showLoginInput, setShowLoginInput] = useState(false); 
+            const [inputPwd, setInputPwd] = useState('');  
+            const [loading, setLoading] = useState(false);
+            const [saving, setSaving] = useState(false);
+            const [notification, setNotification] = useState(null);
+            
+            // 新增功能：月份篩選 (應對全學年大資料量)
+            const [selectedMonth, setSelectedMonth] = useState('all');
+            
+            const printRef = useRef();
+
+            useEffect(() => {
+                if (!apiUrl || apiUrl.includes("在此貼上")) {
+                    showNotify("請先在原始碼設定 FIXED_API_URL 網址！", "error");
+                    return;
+                }
+                fetchData(apiUrl);
+            }, []);
+
+            const showNotify = (msg, type = 'success') => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            const fetchData = async (url) => {
+                setLoading(true);
+                try {
+                    const res = await fetch(url);
+                    const json = await res.json();
+                    if (json.status === 'success') {
+                        setData(json.calendar);
+                        setSystemPwd(json.sysPwd ? json.sysPwd.toString().trim() : null);
+                    } else { showNotify(json.message, 'error'); }
+                } catch (e) { showNotify('連線失敗，請檢查網路或網址', 'error'); }
+                setLoading(false);
+            };
+
+            const handleAdminLogin = () => {
+                if (inputPwd === systemPwd) {
+                    setIsAdmin(true); setShowLoginInput(false); showNotify('成功切換至各處室編輯模式'); setInputPwd('');
+                } else { showNotify('❌ 密碼錯誤', 'error'); setInputPwd(''); }
+            };
+
+            const handleUpdate = async (rowIndex, column, newValue) => {
+                const newData = data.map(row => row.rowIndex === rowIndex ? { ...row, [column]: newValue } : row);
+                setData(newData);
+                setSaving(true);
+                try {
+                    await fetch(apiUrl, {
+                        method: 'POST',
+                        body: JSON.stringify({ rowIndex, column, value: newValue, password: systemPwd }),
+                        headers: { "Content-Type": "text/plain" }
+                    });
+                    showNotify('資料已儲存');
+                } catch (e) { showNotify('儲存失敗', 'error'); }
+                setSaving(false);
+            };
+
+            const handlePrint = () => {
+                const tableContent = printRef.current.innerHTML;
+                const win = window.open('', '', 'height=800,width=1200');
+                if (!win) {
+                    showNotify("瀏覽器擋住了列印視窗！請在網址列右側允許彈出式視窗。", "error");
+                    return;
+                }
+                
+                win.document.write('<html><head><title>南興國小 115學年度 行事曆</title>');
+                win.document.write('<style>');
+                win.document.write(`
+                    body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; -webkit-print-color-adjust: exact; }
+                    h2 { text-align: center; margin-bottom: 20px; font-size: 24px; font-weight: bold;}
+                    table { border-collapse: collapse; width: 100%; font-size: 10pt; border: 1px solid #000; }
+                    th, td { border: 1px solid #000; padding: 6px; vertical-align: top; text-align: left; }
+                    th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
+                    
+                    /* 顏色還原轉換 */
+                    .text-red-900 { color: #7f1d1d; font-weight: 500; }
+                    .text-blue-900 { color: #1e3a8a; }
+                    .text-green-900 { color: #14532d; }
+                    .text-yellow-700 { color: #a16207; }
+                    .text-pink-700 { color: #be185d; }
+                    .text-purple-900 { color: #581c87; }
+                    
+                    .bg-yellow-50\\/40 { background-color: rgba(254, 252, 232, 0.4); }
+                    .whitespace-pre-wrap { white-space: pre-wrap; }
+                    .text-center { text-align: center; }
+                    .text-red-500 { color: red; font-weight: bold; }
+                    
+                    .overflow-x-auto { overflow: visible; max-height: none; }
+                    @page { size: landscape; margin: 10mm; }
+                `);
+                win.document.write('</style></head><body>');
+                
+                let printTitle = '南興國小 115學年度 學校行事曆';
+                if(selectedMonth !== 'all') printTitle += ` (${selectedMonth}月份)`;
+                
+                win.document.write(`<h2>${printTitle}</h2>`);
+                win.document.write(tableContent);
+                win.document.write('</body></html>');
+                win.document.close(); 
+                win.focus();          
+                
+                setTimeout(() => { win.print(); }, 500);
+            };
+
+            const availableMonths = useMemo(() => {
+                const months = new Set(data.map(r => r['月']).filter(m => m));
+                return Array.from(months).sort((a,b) => {
+                    // 學年度排序 (8月開始, 到隔年7月)
+                    const weightA = a >= 8 ? a - 12 : a;
+                    const weightB = b >= 8 ? b - 12 : b;
+                    return weightA - weightB;
+                });
+            }, [data]);
+
+            const filteredData = useMemo(() => {
+                if (selectedMonth === 'all') return data;
+                return data.filter(r => r['月'].toString() === selectedMonth.toString());
+            }, [data, selectedMonth]);
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="bg-white shadow-md sticky top-0 z-30">
+                        <div className="max-w-full px-4 py-3 flex justify-between items-center flex-wrap gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-2.5 rounded-lg shadow-sm">
+                                    <i className="fas fa-calendar-check text-xl"></i>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-slate-800 tracking-wide">南興國小 115學年度 行事曆</h1>
+                                    <div className="text-xs text-slate-500 font-medium">{saving ? '☁️ 各處室資料儲存中...' : '✅ 雲端資料已同步'}</div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 flex-wrap">
+                                {/* 月份過濾器 */}
+                                {availableMonths.length > 0 && (
+                                    <div className="flex items-center bg-slate-100 rounded-lg p-1 shadow-inner border border-slate-200">
+                                        <button 
+                                            onClick={() => setSelectedMonth('all')} 
+                                            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedMonth === 'all' ? 'bg-white text-slate-800 shadow font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            全學年
+                                        </button>
+                                        {availableMonths.map(m => (
+                                            <button 
+                                                key={m} onClick={() => setSelectedMonth(m)}
+                                                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${selectedMonth.toString() === m.toString() ? 'bg-white text-slate-800 shadow font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                {m}月
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <button 
+                                    onClick={handlePrint} 
+                                    className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 shadow-md flex items-center transition-transform active:scale-95"
+                                >
+                                    <i className="fas fa-print mr-2"></i> 列印 / 匯出 PDF
+                                </button>
+                                
+                                {isAdmin ? (
+                                    <div className="flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                        <span className="text-red-700 text-xs font-bold">處室編輯模式</span>
+                                        <button onClick={() => setIsAdmin(false)} className="text-red-400 hover:text-red-700 ml-2"><i className="fas fa-sign-out-alt"></i></button>
+                                    </div>
+                                ) : showLoginInput ? (
+                                    <div className="flex gap-2 animate-fade-in bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                        <input autoFocus type="password" placeholder="編輯密碼" className="border border-slate-300 rounded px-2 py-1 w-24 text-sm focus:ring-2 focus:ring-indigo-400 outline-none" value={inputPwd} onChange={e => setInputPwd(e.target.value)} />
+                                        <button onClick={handleAdminLogin} className="bg-indigo-600 text-white px-3 rounded text-sm hover:bg-indigo-700 shadow-sm">登入</button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => setShowLoginInput(true)} className="bg-slate-800 text-white text-sm px-4 py-2 rounded-lg hover:bg-slate-700 shadow-md">
+                                        <i className="fas fa-pen-to-square mr-2"></i>處室編輯
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </header>
+                    
+                    {notification && (
+                        <div className={`fixed bottom-6 right-6 px-6 py-3 rounded-lg text-white shadow-xl z-50 animate-bounce ${notification.type==='error'?'bg-red-500':'bg-emerald-600'}`}>
+                            {notification.msg}
+                        </div>
+                    )}
+                    
+                    <main className="flex-grow p-4 overflow-auto">
+                        <div className="bg-white rounded-xl shadow border border-slate-200 overflow-hidden h-full flex flex-col">
+                            {loading ? (
+                                <div className="p-20 text-center text-slate-400 flex flex-col items-center">
+                                    <i className="fas fa-circle-notch fa-spin text-4xl mb-4 text-indigo-400"></i>
+                                    <div className="font-medium tracking-widest text-lg">讀取雲端資料庫中...</div>
+                                </div> 
+                            ) : (
+                                <div ref={printRef} className="overflow-x-auto max-h-[75vh] w-full flex-grow">
+                                    <table className="w-full text-left border-collapse relative">
+                                        <thead>
+                                            <tr>
+                                                <th className="th-custom bg-slate-100 text-slate-600 w-12 border-b-2 border-slate-300">週別</th>
+                                                <th className="th-custom bg-slate-100 text-slate-600 w-16 border-b-2 border-slate-300">日期</th>
+                                                <th className="th-custom bg-slate-100 text-slate-600 w-12 border-b-2 border-slate-300">星期</th>
+                                                <th className="th-custom header-common min-w-[160px]">🚩 共同行事</th>
+                                                <th className="th-custom header-jiaodao min-w-[160px]">📚 教導處</th>
+                                                <th className="th-custom header-general min-w-[140px]">🔨 總務處</th>
+                                                <th className="th-custom header-kinder min-w-[140px]">🧸 幼兒園</th>
+                                                <th className="th-custom header-health min-w-[140px]">🏥 健康中心</th>
+                                                <th className="th-custom header-workshop min-w-[160px]">👩‍🏫 周三研習</th>
+                                                <th className="th-custom bg-slate-100 text-slate-500 min-w-[120px] border-b-2 border-slate-300">🦺 當周導護</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredData.length === 0 ? (
+                                                <tr><td colSpan="10" className="text-center py-10 text-slate-500">此月份目前無資料</td></tr>
+                                            ) : (
+                                                filteredData.map(row => <CalendarRow key={row.rowIndex} row={row} isAdmin={isAdmin} onUpdate={handleUpdate} />)
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const CalendarRow = ({ row, isAdmin, onUpdate }) => {
+            const isWeekend = row['星期'] === '六' || row['星期'] === '日';
+            
+            // 彈性關鍵字判斷，若遇到放假或特殊節日則上底色
+            const eventStr = (row['共同行事'] || '') + (row['教務處'] || '');
+            const isHoliday = eventStr.match(/放假|連假|補假|停班|春節|國慶|中秋|清明|端午|和平紀念/);
+            
+            const bgClass = isHoliday || isWeekend ? 'bg-slate-50' : 'bg-white hover:bg-indigo-50/20';
+            const dateClass = isWeekend || isHoliday ? 'text-red-500 font-bold' : 'text-slate-700 font-medium';
+
+            return (
+                <tr className={bgClass}>
+                    <Cell value={row['週別']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '週別', val)} className="text-center font-bold text-slate-400 bg-slate-50/50" />
+                    <td className={`cell-base text-center py-3 ${dateClass}`}>{row['月']}/{row['日']}</td>
+                    <td className={`cell-base text-center py-3 ${dateClass}`}>{row['星期']}</td>
+                    <Cell value={row['共同行事']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '共同行事', val)} className="text-red-900" />
+                    <Cell value={row['教導處']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '教導處', val)} className="text-blue-900" />
+                    <Cell value={row['總務處']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '總務處', val)} className="text-yellow-700" />
+                    <Cell value={row['幼兒園']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '幼兒園', val)} className="text-pink-700" />
+                    <Cell value={row['健康中心']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '健康中心', val)} className="text-teal-700" />
+                    <Cell value={row['周三研習']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '周三研習', val)} className="text-purple-900 bg-purple-50/10" />
+                    <Cell value={row['當周導護']} isAdmin={isAdmin} onSave={val => onUpdate(row.rowIndex, '當周導護', val)} className="text-slate-600 text-[13px] font-bold bg-yellow-50/40" />
+                </tr>
+            );
+        };
+
+        const Cell = ({ value, isAdmin, onSave, className }) => {
+            const [editing, setEditing] = useState(false);
+            const [temp, setTemp] = useState(value);
+            useEffect(() => setTemp(value), [value]);
+            
+            if (!isAdmin || !editing) {
+                return (
+                    <td className={`cell-base cursor-pointer ${className}`} onClick={() => isAdmin && setEditing(true)}>
+                        <div className="cell-content whitespace-pre-wrap">{value}</div>
+                    </td>
+                );
+            }
+            return (
+                <td className="cell-base p-0">
+                    <textarea className="w-full h-full min-h-[60px] p-2 bg-white border-2 border-indigo-500 outline-none resize-none text-[14px] shadow-inner font-medium text-slate-800" 
+                        value={temp} onChange={e => setTemp(e.target.value)} 
+                        onBlur={() => {setEditing(false); if(temp!==value) onSave(temp);}} 
+                        autoFocus 
+                    />
+                </td>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
