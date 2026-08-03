@@ -194,7 +194,7 @@
                             
                             <div className="flex items-center gap-3 flex-wrap">
                                 {/* 月份過濾器 */}
-                                {availableMonths.length > 0 && (
+                                {availableMonths.length > 0 ? (
                                     <div className="flex items-center bg-slate-100 rounded-lg p-1 shadow-inner border border-slate-200">
                                         <button 
                                             onClick={() => setSelectedMonth('all')} 
@@ -210,6 +210,10 @@
                                                 {m}月
                                             </button>
                                         ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-red-500 font-bold bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+                                        ⚠️ 請先至 GAS 執行 setupInitialData 產生資料
                                     </div>
                                 )}
 
@@ -290,8 +294,8 @@
             const isWeekend = row['星期'] === '六' || row['星期'] === '日';
             
             // 彈性關鍵字判斷，若遇到放假或特殊節日則上底色
-            const eventStr = (row['共同行事'] || '') + (row['教務處'] || '');
-            const isHoliday = eventStr.match(/放假|連假|補假|停班|春節|國慶|中秋|清明|端午|和平紀念/);
+            const eventStr = (row['共同行事'] || '') + (row['教導處'] || '');
+            const isHoliday = eventStr.match(/放假|連假|補假|停班|春節|國慶|中秋|清明|端午|和平紀念|元旦/);
             
             const bgClass = isHoliday || isWeekend ? 'bg-slate-50' : 'bg-white hover:bg-indigo-50/20';
             const dateClass = isWeekend || isHoliday ? 'text-red-500 font-bold' : 'text-slate-700 font-medium';
