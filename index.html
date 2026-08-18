@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>南興國小 115學年度 學校行事曆</title>
     <!-- React, Babel, Tailwind -->
-    <script src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -47,10 +47,10 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel" data-presets="react,env">
+    <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // ★★★ 已帶入主任的新網址 ★★★
+        // ★★★ 請替換為 115學年度專案 發布的 Web App 網址 ★★★
         const FIXED_API_URL = "https://script.google.com/a/macros/nses.tn.edu.tw/s/AKfycbyt5gDSj_sO0PRkk4shiXqvtKnV-AANQr2doSFEznl8Yj6KGFvBx8fW1JB0Y7r1JU7J5w/exec"; 
 
         function App() {
@@ -64,6 +64,7 @@
             const [saving, setSaving] = useState(false);
             const [notification, setNotification] = useState(null);
             
+            // 新增功能：月份篩選 (應對全學年大資料量)
             const [selectedMonth, setSelectedMonth] = useState('all');
             
             const printRef = useRef();
@@ -84,7 +85,7 @@
             const fetchData = async (url) => {
                 setLoading(true);
                 try {
-                    const res = await fetch(url, { redirect: "follow" });
+                    const res = await fetch(url);
                     const json = await res.json();
                     if (json.status === 'success') {
                         setData(json.calendar);
@@ -108,8 +109,7 @@
                     await fetch(apiUrl, {
                         method: 'POST',
                         body: JSON.stringify({ rowIndex, column, value: newValue, password: systemPwd }),
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        redirect: "follow"
+                        headers: { "Content-Type": "text/plain" }
                     });
                     showNotify('資料已儲存');
                 } catch (e) { showNotify('儲存失敗', 'error'); }
@@ -133,6 +133,7 @@
                     th, td { border: 1px solid #000; padding: 6px; vertical-align: top; text-align: left; }
                     th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
                     
+                    /* 顏色還原轉換 */
                     .text-red-900 { color: #7f1d1d; font-weight: 500; }
                     .text-blue-900 { color: #1e3a8a; }
                     .text-green-900 { color: #14532d; }
@@ -150,7 +151,7 @@
                 `);
                 win.document.write('</style></head><body>');
                 
-                let printTitle = '南興國小 115學年度上學期行事曆';
+                let printTitle = '南興國小 115學年度 學校行事曆';
                 if(selectedMonth !== 'all') printTitle += ` (${selectedMonth}月份)`;
                 
                 win.document.write(`<h2>${printTitle}</h2>`);
@@ -165,6 +166,7 @@
             const availableMonths = useMemo(() => {
                 const months = new Set(data.map(r => r['月']).filter(m => m));
                 return Array.from(months).sort((a,b) => {
+                    // 學年度排序 (8月開始, 到隔年7月)
                     const weightA = a >= 8 ? a - 12 : a;
                     const weightB = b >= 8 ? b - 12 : b;
                     return weightA - weightB;
@@ -191,6 +193,7 @@
                             </div>
                             
                             <div className="flex items-center gap-3 flex-wrap">
+                                {/* 月份過濾器 */}
                                 {availableMonths.length > 0 ? (
                                     <div className="flex items-center bg-slate-100 rounded-lg p-1 shadow-inner border border-slate-200">
                                         <button 
@@ -290,6 +293,7 @@
         const CalendarRow = ({ row, isAdmin, onUpdate }) => {
             const isWeekend = row['星期'] === '六' || row['星期'] === '日';
             
+            // 彈性關鍵字判斷，若遇到放假或特殊節日則上底色
             const eventStr = (row['共同行事'] || '') + (row['教導處'] || '');
             const isHoliday = eventStr.match(/放假|連假|補假|停班|春節|國慶|中秋|清明|端午|和平紀念|元旦/);
             
