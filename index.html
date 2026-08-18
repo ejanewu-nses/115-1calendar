@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>南興國小 115學年度 學校行事曆-old</title>
+    <title>南興國小 115上 學校行事曆</title>
     <!-- React, Babel, Tailwind -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -51,7 +51,7 @@
         const { useState, useEffect, useRef, useMemo } = React;
 
         // ★★★ 請替換為 115學年度專案 發布的 Web App 網址 ★★★
-        const FIXED_API_URL = "https://script.google.com/a/macros/nses.tn.edu.tw/s/AKfycbyt5gDSj_sO0PRkk4shiXqvtKnV-AANQr2doSFEznl8Yj6KGFvBx8fW1JB0Y7r1JU7J5w/exec"; 
+        const FIXED_API_URL = "https://script.google.com/macros/s/AKfycbylgF2BvcH9zQwkO9DvzG8gKQqSDCkjBt0VqpYObSG6hjfNk3PbHTCG5cUjuUSoGKGWpA/exec"; 
 
         function App() {
             const apiUrl = FIXED_API_URL;
@@ -124,7 +124,7 @@
                     return;
                 }
                 
-                win.document.write('<html><head><title>南興國小 115學年度 行事曆</title>');
+                win.document.write('<html><head><title>南興國小 115上 行事曆</title>');
                 win.document.write('<style>');
                 win.document.write(`
                     body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; -webkit-print-color-adjust: exact; }
@@ -151,7 +151,7 @@
                 `);
                 win.document.write('</style></head><body>');
                 
-                let printTitle = '南興國小 115學年度 學校行事曆-old';
+                let printTitle = '南興國小 115上 學校行事曆';
                 if(selectedMonth !== 'all') printTitle += ` (${selectedMonth}月份)`;
                 
                 win.document.write(`<h2>${printTitle}</h2>`);
@@ -187,7 +187,7 @@
                                     <i className="fas fa-calendar-check text-xl"></i>
                                 </div>
                                 <div>
-                                    <h1 className="text-xl font-bold text-slate-800 tracking-wide">南興國小 115學年度 行事曆-old</h1>
+                                    <h1 className="text-xl font-bold text-slate-800 tracking-wide">南興國小 115上 行事曆</h1>
                                     <div className="text-xs text-slate-500 font-medium">{saving ? '☁️ 各處室資料儲存中...' : '✅ 雲端資料已同步'}</div>
                                 </div>
                             </div>
